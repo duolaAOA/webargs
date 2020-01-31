@@ -56,7 +56,7 @@ class PyramidParser(core.Parser):
         if not is_json_request(req):
             return core.missing
 
-        return core.parse_json(req.body, req.charset)
+        return core.parse_json(req.body, encoding=req.charset)
 
     def load_querystring(self, req, schema):
         """Return query params from the request as a MultiDictProxy."""
@@ -83,7 +83,7 @@ class PyramidParser(core.Parser):
         """Return the request's ``matchdict`` as a MultiDictProxy."""
         return MultiDictProxy(req.matchdict, schema)
 
-    def handle_error(self, error, req, schema, error_status_code, error_headers):
+    def handle_error(self, error, req, *, schema, error_status_code, error_headers):
         """Handles errors during parsing. Aborts the current HTTP request and
         responds with a 400 error.
         """
@@ -110,6 +110,7 @@ class PyramidParser(core.Parser):
     def use_args(
         self,
         argmap,
+        *,
         req=None,
         location=core.Parser.DEFAULT_LOCATION,
         as_kwargs=False,
@@ -139,7 +140,7 @@ class PyramidParser(core.Parser):
         # Optimization: If argmap is passed as a dictionary, we only need
         # to generate a Schema once
         if isinstance(argmap, Mapping):
-            argmap = core.dict2schema(argmap, self.schema_class)()
+            argmap = core.dict2schema(argmap, schema_class=self.schema_class)()
 
         def decorator(func):
             @functools.wraps(func)

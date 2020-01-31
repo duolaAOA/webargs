@@ -249,7 +249,7 @@ def test_handle_error_called_when_parsing_raises_error(handle_error, web_request
 def test_handle_error_reraises_errors(web_request):
     p = Parser()
     with pytest.raises(ValidationError):
-        p.handle_error(ValidationError("error raised"), web_request, Schema())
+        p.handle_error(ValidationError("error raised"), web_request, schema=Schema())
 
 
 @mock.patch("webargs.core.Parser.load_headers")
@@ -264,7 +264,9 @@ def test_custom_error_handler(web_request):
     class CustomError(Exception):
         pass
 
-    def error_handler(error, req, schema, status_code, headers):
+    def error_handler(
+        error, req, *, schema, error_status_code=None, error_headers=None
+    ):
         assert isinstance(schema, Schema)
         raise CustomError(error)
 
@@ -292,7 +294,7 @@ def test_custom_error_handler_decorator(web_request):
     parser = Parser()
 
     @parser.error_handler
-    def handle_error(error, req, schema, status_code, headers):
+    def handle_error(error, req, *, schema, error_status_code=None, error_headers=None):
         assert isinstance(schema, Schema)
         raise CustomError(error)
 
@@ -539,7 +541,7 @@ def test_use_args(web_request, parser):
     user_args = {"username": fields.Str(), "password": fields.Str()}
     web_request.json = {"username": "foo", "password": "bar"}
 
-    @parser.use_args(user_args, web_request)
+    @parser.use_args(user_args, req=web_request)
     def viewfunc(args):
         return args
 
@@ -552,8 +554,8 @@ def test_use_args_stacked(web_request, parser):
     web_request.json = {"username": "foo"}
     web_request.query = {"page": 42}
 
-    @parser.use_args(query_args, web_request, location="query")
-    @parser.use_args(json_args, web_request)
+    @parser.use_args(query_args, req=web_request, location="query")
+    @parser.use_args(json_args, req=web_request)
     def viewfunc(query_parsed, json_parsed):
         return {"json": json_parsed, "query": query_parsed}
 
@@ -568,8 +570,8 @@ def test_use_kwargs_stacked(web_request, parser):
     web_request.json = {"username": "foo"}
     web_request.query = {"page": 42}
 
-    @parser.use_kwargs(query_args, web_request, location="query")
-    @parser.use_kwargs(json_args, web_request)
+    @parser.use_kwargs(query_args, req=web_request, location="query")
+    @parser.use_kwargs(json_args, req=web_request)
     def viewfunc(page, username):
         return {"json": {"username": username}, "query": {"page": page}}
 
@@ -652,7 +654,7 @@ def test_use_args_callable(web_request, parser):
         assert req is web_request
         return HelloSchema(context={"request": req})
 
-    @parser.use_args(make_schema, web_request)
+    @parser.use_args(make_schema, req=web_request)
     def viewfunc(args):
         return args
 
@@ -680,7 +682,7 @@ class TestPassingSchema:
 
         web_request.json = {"email": "foo@bar.com", "password": "bar"}
 
-        @parser.use_args(self.UserSchema(**strict_kwargs), web_request)
+        @parser.use_args(self.UserSchema(**strict_kwargs), req=web_request)
         def viewfunc(args):
             return args
 
@@ -704,7 +706,7 @@ class TestPassingSchema:
             assert req is web_request
             return self.UserSchema(context={"request": req}, **strict_kwargs)
 
-        @parser.use_args(factory, web_request)
+        @parser.use_args(factory, req=web_request)
         def viewfunc(args):
             return args
 
@@ -714,7 +716,7 @@ class TestPassingSchema:
 
         web_request.json = {"email": "foo@bar.com", "password": "bar"}
 
-        @parser.use_kwargs(self.UserSchema(**strict_kwargs), web_request)
+        @parser.use_kwargs(self.UserSchema(**strict_kwargs), req=web_request)
         def viewfunc(email, password):
             return {"email": email, "password": password}
 
@@ -727,7 +729,7 @@ class TestPassingSchema:
             assert req is web_request
             return self.UserSchema(context={"request": req}, **strict_kwargs)
 
-        @parser.use_kwargs(factory, web_request)
+        @parser.use_kwargs(factory, req=web_request)
         def viewfunc(email, password):
             return {"email": email, "password": password}
 
@@ -759,8 +761,8 @@ class TestPassingSchema:
 
         web_request.json = {"email": "foo@bar.com", "password": "bar", "page": 42}
 
-        @parser.use_kwargs(pageschema, web_request)
-        @parser.use_kwargs(userschema, web_request)
+        @parser.use_kwargs(pageschema, req=web_request)
+        @parser.use_kwargs(userschema, req=web_request)
         def viewfunc(email, password, page):
             return {"email": email, "password": password, "page": page}
 
@@ -797,7 +799,7 @@ def test_use_args_with_custom_location_in_parser(web_request, parser):
     def load_custom(schema, req):
         return {"foo": "bar"}
 
-    @parser.use_args(custom_args, web_request)
+    @parser.use_args(custom_args, req=web_request)
     def viewfunc(args):
         return args
 
@@ -808,7 +810,7 @@ def test_use_kwargs(web_request, parser):
     user_args = {"username": fields.Str(), "password": fields.Str()}
     web_request.json = {"username": "foo", "password": "bar"}
 
-    @parser.use_kwargs(user_args, web_request)
+    @parser.use_kwargs(user_args, req=web_request)
     def viewfunc(username, password):
         return {"username": username, "password": password}
 
@@ -819,7 +821,7 @@ def test_use_kwargs_with_arg_missing(web_request, parser):
     user_args = {"username": fields.Str(required=True), "password": fields.Str()}
     web_request.json = {"username": "foo"}
 
-    @parser.use_kwargs(user_args, web_request)
+    @parser.use_kwargs(user_args, req=web_request)
     def viewfunc(username, **kwargs):
         assert "password" not in kwargs
         return {"username": username}

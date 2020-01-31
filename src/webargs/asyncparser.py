@@ -26,6 +26,7 @@ class AsyncParser(core.Parser):
         self,
         argmap: ArgMap,
         req: Request = None,
+        *,
         location: str = None,
         validate: Validate = None,
         error_status_code: typing.Union[int, None] = None,
@@ -50,7 +51,11 @@ class AsyncParser(core.Parser):
             self._validate_arguments(data, validators)
         except ma.exceptions.ValidationError as error:
             await self._on_validation_error(
-                error, req, schema, error_status_code, error_headers
+                error,
+                req,
+                schema=schema,
+                error_status_code=error_status_code,
+                error_headers=error_headers,
             )
         return data
 
@@ -77,16 +82,24 @@ class AsyncParser(core.Parser):
         self,
         error: ValidationError,
         req: Request,
+        *,
         schema: Schema,
         error_status_code: typing.Union[int, None],
         error_headers: typing.Union[typing.Mapping[str, str], None] = None,
     ) -> None:
         error_handler = self.error_callback or self.handle_error
-        await error_handler(error, req, schema, error_status_code, error_headers)
+        await error_handler(
+            error,
+            req,
+            schema=schema,
+            error_status_code=error_status_code,
+            error_headers=error_headers,
+        )
 
     def use_args(
         self,
         argmap: ArgMap,
+        *,
         req: typing.Optional[Request] = None,
         location: str = None,
         as_kwargs: bool = False,
@@ -103,7 +116,7 @@ class AsyncParser(core.Parser):
         # Optimization: If argmap is passed as a dictionary, we only need
         # to generate a Schema once
         if isinstance(argmap, Mapping):
-            argmap = core.dict2schema(argmap, self.schema_class)()
+            argmap = core.dict2schema(argmap, schema_class=self.schema_class)()
 
         def decorator(func: typing.Callable) -> typing.Callable:
             req_ = request_obj

@@ -149,6 +149,7 @@ class AIOHTTPParser(AsyncParser):
         self,
         error: ValidationError,
         req: Request,
+        *,
         schema: Schema,
         error_status_code: typing.Union[int, None] = None,
         error_headers: typing.Union[typing.Mapping[str, str], None] = None,

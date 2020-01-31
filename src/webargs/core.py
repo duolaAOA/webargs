@@ -66,7 +66,7 @@ def is_json(mimetype):
     return False
 
 
-def parse_json(s, encoding="utf-8"):
+def parse_json(s, *, encoding="utf-8"):
     if isinstance(s, bytes):
         try:
             s = s.decode(encoding)
@@ -125,7 +125,7 @@ class Parser:
         "json_or_form": "load_json_or_form",
     }
 
-    def __init__(self, location=None, error_handler=None, schema_class=None):
+    def __init__(self, location=None, *, error_handler=None, schema_class=None):
         self.location = location or self.DEFAULT_LOCATION
         self.error_callback = _callable_or_raise(error_handler)
         self.schema_class = schema_class or self.DEFAULT_SCHEMA_CLASS
@@ -152,7 +152,7 @@ class Parser:
             raise ValueError('Invalid location: "{}"'.format(location))
         return function
 
-    def _load_location_data(self, schema, req, location):
+    def _load_location_data(self, *, schema, req, location):
         """Return a dictionary-like object for the location on the given request.
 
         Needs to have the schema in hand in order to correctly handle loading
@@ -168,10 +168,16 @@ class Parser:
         return data
 
     def _on_validation_error(
-        self, error, req, schema, error_status_code, error_headers
+        self, error, req, *, schema, error_status_code, error_headers
     ):
         error_handler = self.error_callback or self.handle_error
-        error_handler(error, req, schema, error_status_code, error_headers)
+        error_handler(
+            error,
+            req,
+            schema=schema,
+            error_status_code=error_status_code,
+            error_headers=error_headers,
+        )
 
     def _validate_arguments(self, data, validators):
         for validator in validators:
@@ -195,7 +201,7 @@ class Parser:
         elif callable(argmap):
             schema = argmap(req)
         else:
-            schema = dict2schema(argmap, self.schema_class)()
+            schema = dict2schema(argmap, schema_class=self.schema_class)()
         if MARSHMALLOW_VERSION_INFO[0] < 3 and not schema.strict:
             warnings.warn(
                 "It is highly recommended that you set strict=True on your schema "
@@ -208,6 +214,7 @@ class Parser:
         self,
         argmap,
         req=None,
+        *,
         location=None,
         validate=None,
         error_status_code=None,
@@ -248,7 +255,11 @@ class Parser:
             self._validate_arguments(data, validators)
         except ma.exceptions.ValidationError as error:
             self._on_validation_error(
-                error, req, schema, error_status_code, error_headers
+                error,
+                req,
+                schema=schema,
+                error_status_code=error_status_code,
+                error_headers=error_headers,
             )
         return data
 
@@ -275,6 +286,7 @@ class Parser:
     def use_args(
         self,
         argmap,
+        *,
         req=None,
         location=None,
         as_kwargs=False,
@@ -309,7 +321,7 @@ class Parser:
         # Optimization: If argmap is passed as a dictionary, we only need
         # to generate a Schema once
         if isinstance(argmap, Mapping):
-            argmap = dict2schema(argmap, self.schema_class)()
+            argmap = dict2schema(argmap, schema_class=self.schema_class)()
 
         def decorator(func):
             req_ = request_obj
@@ -503,7 +515,7 @@ class Parser:
         return missing
 
     def handle_error(
-        self, error, req, schema, error_status_code=None, error_headers=None
+        self, error, req, *, schema, error_status_code=None, error_headers=None
     ):
         """Called if an error occurs while parsing args. By default, just logs and
         raises ``error``.
